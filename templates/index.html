@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Friction Factor Friend</title>
+
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+
+    <script>
+    async function calculate() {
+        const delta_P = parseFloat(document.getElementById('delta_P').value);
+        const L = parseFloat(document.getElementById('L').value);
+        const rho = parseFloat(document.getElementById('rho').value);
+        const D = parseFloat(document.getElementById('D').value);
+        const mu = parseFloat(document.getElementById('mu').value);
+        const kappa = parseFloat(document.getElementById('kappa').value);
+        
+        const response = await fetch('/calculate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ delta_P, L, rho, D, mu, kappa })
+        });
+        const data = await response.json();
+        document.getElementById('result').innerText = 'Blasius Guess: ' + data.blasius_guess + '\nReynolds Number: ' + data.Re + '\nFriction Factor: ' + data.f;
+    }
+    </script>
+
+
+</head>
+<body>
+    <h1>Fanning Friction Factor Friend: </h1>
+    <h2> \( \frac{\Delta P}{L} = \frac{2 f \rho \langle v \rangle ^2}{D} \) </h2>
+    Where Fanning Friction Factor is defined with the Colebrook equation:
+    <h2> \( \frac{1}{\sqrt{f}} = -4.0 \log_{10} \left ( \frac{\kappa / D}{3.7} + \frac{1.256}{Re \sqrt{f}} \right ) \) </h2>
+    And Reynolds number is:
+    <h2> \( Re = \frac{\rho \langle v \rangle D}{\mu} \) </h2>
+
+    <input id="delta_P" type="number" placeholder="∆P">
+    <input id="L" type="number" placeholder="L">
+    <input id="rho" type="number" placeholder="ρ">
+    <input id="D" type="number" placeholder="D">
+    <input id="mu" type="number" placeholder="μ">
+    <input id="kappa" type="number" placeholder="κ">
+
+    <button onclick="calculate()">Solve</button>
+    <p id="result"></p>
+
+</body>
+</html>
