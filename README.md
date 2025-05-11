@@ -1,2 +1,2 @@
 # Engineering-Bernoullis-Helper
-Finds solution for engineering Bernoulli's given major and minor losses.
+Finds velocity solution for major and minor head loss using Colebrook equation.

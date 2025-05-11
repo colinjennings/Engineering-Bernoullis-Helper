@@ -1,51 +1,243 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Friction Factor Friend</title>
-
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async
-      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-    </script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipe Flow Loss Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@^2.0/dist/tailwind.min.css" rel="stylesheet">
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
-    async function calculate() {
-        const delta_P = parseFloat(document.getElementById('delta_P').value);
-        const L = parseFloat(document.getElementById('L').value);
-        const rho = parseFloat(document.getElementById('rho').value);
-        const D = parseFloat(document.getElementById('D').value);
-        const mu = parseFloat(document.getElementById('mu').value);
-        const kappa = parseFloat(document.getElementById('kappa').value);
         
-        const response = await fetch('/calculate', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ delta_P, L, rho, D, mu, kappa })
-        });
-        const data = await response.json();
-        document.getElementById('result').innerText = 'Blasius Guess: ' + data.blasius_guess + '\nReynolds Number: ' + data.Re + '\nFriction Factor: ' + data.f;
-    }
+        function updateForm() {
+            const lossType = document.getElementById("lossType").value;
+            const majorFields = document.querySelectorAll(".major");
+            const minorFields = document.querySelectorAll(".minor");
+            const majorEquations = document.querySelectorAll(".major-equation");
+            const minorEquations = document.querySelectorAll(".minor-equation");
+            const bothEquations = document.querySelectorAll(".both-equation");
+            
+           
+            // hide the result box when changing stuff
+            document.getElementById("results-box").style.display = "none";
+            // disable calculate button
+            document.getElementById("calculateButton").disabled = true;
+
+            // display only relevant equations
+            if (lossType === "major") {
+                majorFields.forEach(el => el.style.display = "block");
+                minorFields.forEach(el => el.style.display = "none");
+                majorEquations.forEach(el => el.style.display = "block");
+                minorEquations.forEach(el => el.style.display = "none");
+                bothEquations.forEach(el => el.style.display = "none");
+            } else if (lossType === "minor") {
+                majorFields.forEach(el => el.style.display = "none");
+                minorFields.forEach(el => el.style.display = "block");
+                majorEquations.forEach(el => el.style.display = "none");
+                minorEquations.forEach(el => el.style.display = "block");
+                bothEquations.forEach(el => el.style.display = "none");
+            } else if (lossType === "both") {
+                majorFields.forEach(el => el.style.display = "block");
+                minorFields.forEach(el => el.style.display = "block");
+                majorEquations.forEach(el => el.style.display = "none");
+                minorEquations.forEach(el => el.style.display = "none");
+                bothEquations.forEach(el => el.style.display = "block");
+            }
+
+            // since the numbers will still be in the form when changing between loss types, this will validate
+            validateForm()
+
+        }
+
+        function validateForm() {
+            const lossType = document.getElementById("lossType").value;
+            const calculateButton = document.getElementById("calculateButton");
+            let allFilled = true;
+
+            // the required fields are the ones displayed
+            const requiredFields = Array.from(document.querySelectorAll(".major, .minor")).filter(el => el.style.display !== "none");
+
+            // go through required fields and make sure they have a number in them
+            requiredFields.forEach(fieldContainer => {
+                const input = fieldContainer.querySelector("input[type='number']");
+                if (!input || input.value.trim() === "") {
+                    allFilled = false;
+                }
+            });
+
+            calculateButton.disabled = !allFilled;
+        }
+
+        async function calculateResults() {
+            const lossType = document.getElementById("lossType").value;
+            const L = document.getElementById("L").value;
+            const D = document.getElementById("D").value;
+            const rho = document.getElementById("rho").value;
+            const mu = document.getElementById("mu").value;
+            const kappa = document.getElementById("kappa").value;
+            const k = document.getElementById("k").value;
+            const g = document.getElementById("g").value;
+            const head_loss = document.getElementById("head_loss").value;
+
+            const response = await fetch("http://localhost:5000/calculate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    lossType,
+                    L,
+                    D,
+                    rho,
+                    mu,
+                    kappa,
+                    k,
+                    g,
+                    head_loss
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const resultsBox = document.getElementById("results-box");
+                let resultsHTML = "<h2 class='text-2xl font-bold mb-4'>Results</h2><ul>";
+                
+                // order the results correctly
+                if (data.velocity !== undefined) {
+                    resultsHTML += `<li>Velocity: ${data.velocity} m/s</li>`;
+                }
+                if (data.reynoldsNumber !== undefined) {
+                    resultsHTML += `<li>Reynolds Number: ${data.reynoldsNumber}</li>`;
+                }
+                if (data.frictionFactor !== undefined) {
+                    resultsHTML += `<li>Friction Factor: ${data.frictionFactor}</li>`;
+                }
+                if (data.majorLossTerm !== undefined) {
+                    resultsHTML += `<li>Major Loss Term: ${data.majorLossTerm} m</li>`;
+                }
+                if (data.minorLossTerm !== undefined) {
+                    resultsHTML += `<li>Minor Loss Term: ${data.minorLossTerm} m</li>`;
+                }
+                resultsHTML += "</ul>";
+                resultsBox.innerHTML = resultsHTML;
+                resultsBox.style.display = "block";
+            } else {
+                alert("Error fetching results. Please try again.");
+            }
+        }
+
+        window.onload = () => {
+            updateForm();
+            document.querySelectorAll("input[type='number']").forEach(input => {
+                input.addEventListener("input", validateForm);
+            });
+            document.getElementById("lossType").addEventListener("change", updateForm);
+        };
+
+        
     </script>
-
-
+        <style>
+            input[type="number"]::-webkit-outer-spin-button,
+            input[type="number"]::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            input[type="number"] {
+                -moz-appearance: textfield;
+            }
+            .equation-box {
+                max-width: 32rem;
+                background-color: #ffffff;
+                border-radius: 1rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                padding: 2rem;
+                margin-bottom: 2rem;
+                flex-shrink: 0;
+            }
+            .equation {
+                display: block;
+                width: 100%;
+                text-align: center;
+            }
+            .results-box {
+                max-width: 32rem;
+                background-color: #ffffff;
+                border-radius: 1rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                padding: 2rem;
+                margin-bottom: 2rem;
+                flex-shrink: 0;
+                flex-grow: 0;
+            }
+        </style>
+    
 </head>
-<body>
-    <h1>Fanning Friction Factor Friend: </h1>
-    <h2> \( \frac{\Delta P}{L} = \frac{2 f \rho \langle v \rangle ^2}{D} \) </h2>
-    Where Fanning Friction Factor is defined with the Colebrook equation:
-    <h2> \( \frac{1}{\sqrt{f}} = -4.0 \log_{10} \left ( \frac{\kappa / D}{3.7} + \frac{1.256}{Re \sqrt{f}} \right ) \) </h2>
-    And Reynolds number is:
-    <h2> \( Re = \frac{\rho \langle v \rangle D}{\mu} \) </h2>
+<body class="bg-gray-100 p-6">
 
-    <input id="delta_P" type="number" placeholder="∆P">
-    <input id="L" type="number" placeholder="L">
-    <input id="rho" type="number" placeholder="ρ">
-    <input id="D" type="number" placeholder="D">
-    <input id="mu" type="number" placeholder="μ">
-    <input id="kappa" type="number" placeholder="κ">
+    <div class="max-w-7xl mx-auto flex gap-8">
+        <div class="max-w-2xl bg-white rounded-xl shadow-lg p-8 flex-1">
+        <h1 class="text-3xl font-bold mb-6">Pipe Flow Loss Calculator</h1>
 
-    <button onclick="calculate()">Solve</button>
-    <p id="result"></p>
+        <div class="mb-4">
+            <label for="lossType" class="block font-semibold mb-2">Loss Type</label>
+            <select id="lossType" class="w-full p-2 border rounded" onchange="updateForm()">
+                <option value="major">Major Loss</option>
+                <option value="minor">Minor Loss</option>
+                <option value="both">Both Major and Minor Loss</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label for="head_loss" class="block font-semibold mb-2">\( h_L \\ \) : Head Loss (m)</label>
+            <input type="number" id="head_loss" class="w-full p-2 border rounded" />
+        </div>
+        <div class="mb-4 major">
+            <label for="L" class="block font-semibold mb-2">\( L \\ \) : Pipe Length (m)</label>
+            <input type="number" id="L" class="w-full p-2 border rounded" />
+        </div>
+        <div class="mb-4 major">
+            <label for="D" class="block font-semibold mb-2">\( D \\ \) : Pipe Diameter (m)</label>
+            <input type="number" id="D" class="w-full p-2 border rounded" />
+        </div>
+        <div class="mb-4 major">
+            <label for="rho" class="block font-semibold mb-2">\( \rho \\ \) : Fluid Density (kg/m^3)</label>
+            <input type="number" id="rho" class="w-full p-2 border rounded" />
+        </div>
+        <div class="mb-4 major">
+            <label for="mu" class="block font-semibold mb-2">\( \mu \\ \) : Fluid Viscosity (Pa.s)</label>
+            <input type="number" id="mu" class="w-full p-2 border rounded" />
+        </div>
+        <div class="mb-4 major">
+            <label for="kappa" class="block font-semibold mb-2">\( \kappa \\ \) : Pipe Roughness (m)</label>
+            <input type="number" id="kappa" class="w-full p-2 border rounded" />
+        </div>
+        <div class="mb-4 minor">
+            <label for="k" class="block font-semibold mb-2">\( k \\ \) : Minor Loss Coefficient</label>
+            <input type="number" id="k" class="w-full p-2 border rounded" />
+        </div>
+        <div class="mb-4">
+            <label for="g" class="block font-semibold mb-2">\( g \\ \) : Gravitational Acceleration (m/s^2)</label>
+            <input type="number" id="g" value="9.81" class="w-full p-2 border rounded" />
+        </div>
+
+        <button id="calculateButton" onclick="calculateResults()" class="bg-blue-600 text-white py-2 px-4 rounded">Calculate</button>
+        <div id="results" class="mt-6 text-lg"></div>
+    </div>
+    <div class="flex flex-col">
+        <div class="equation-box">
+            <h2 class="text-2xl font-bold mb-4">Equations (using Fanning Friction)</h2>
+            <div class="equation major-equation">\[ h_L = 2 f \frac{L}{D}\frac{v^2}{g} \]</div>
+            <div class="equation major-equation">\[ \frac{1}{\sqrt{f}} = -4.0 \log_{10} \left ( \frac{\kappa / D}{3.7} + \frac{1.256}{Re \sqrt{f}} \right ) \]</div>
+            <div class="equation minor-equation" style="display:none">\[ h_L = k \frac{v^2}{2g} \]</div>
+            <div class="equation both-equation" style="display:none">\[ h_L = 2 f \frac{L}{D}\frac{v^2}{g} + k \frac{v^2}{2g} \]</div>
+            <div class="equation both-equation">\[ \frac{1}{\sqrt{f}} = -4.0 \log_{10} \left ( \frac{\kappa / D}{3.7} + \frac{1.256}{Re \sqrt{f}} \right ) \]</div>
+        </div>
+        <div id="results-box" class="results-box" style="display:none"></div>
+    </div>
+
+
+    </div>
+
+
 
 </body>
 </html>
